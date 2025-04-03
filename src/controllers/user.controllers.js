@@ -210,7 +210,7 @@ const logOutUser = asyncHandler (async (req, res) => {
      .clearCookie("refreshToken", options)
      .json(new ApiResponse(200, {}, "User logged Out"))
 })
-//=================THIS IS ACCESSTOKEN============================================================================================
+//=================THIS IS ACCESSREFRESH-TOKEN============================================================================================
 //accessToken humara user ke pass hi rhta hia--basically ye end-point hai jo ki access token ke liye hai
 const refreshAccessToken = asyncHandler(async (req, res) => {
      //phle refresh token bhejna hi padega jo ki user hume bhej rha hai -
@@ -259,4 +259,4 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
           throw new ApiError(401, error?.message || "Invalid refresh token")
      }
 })
-export { registerUser, loginUser, logOutUser, refreshAccessToken }     //ye registerUser ko post kiya gaya hai user.routes.js me --- with the help of app.js
+export { registerUser, loginUser, logOutUser, refreshAccessToken  }     //ye registerUser ko post kiya gaya hai user.routes.js me --- with the help of app.js

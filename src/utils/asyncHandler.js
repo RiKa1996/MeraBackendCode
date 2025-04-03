@@ -10,7 +10,7 @@ const asyncHandler = (requestHandler) => {
     }
 }
 
-export {asyncHandler}
+export { asyncHandler }
 
 
 

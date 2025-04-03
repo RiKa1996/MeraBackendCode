@@ -14,7 +14,7 @@ export const verifyJWT = asyncHandler(async (req, _, next) =>{  //res humara yah
         console.log(token)
         //agar aapke pass token hi nhi hai----cookies ya "Authorization" me se
         if (!token){
-            throw new ApiError(401, "Unauthorized request")
+            throw new ApiError(401, "Unauthorized requestt")
         }
     
         //ydi token mil gai hai to--- jo _id humne user.model.js me userSchema.methods.generateAccessToken = function () me liya use lena hoga na
