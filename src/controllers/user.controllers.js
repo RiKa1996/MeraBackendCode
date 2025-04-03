@@ -21,7 +21,7 @@ const generateAccessAndRefreshToken = async (userId) => {
           //ye jo token hai encoded wala---jo humne user me dal diya hai
           user.refreshToken = refreshToken
           //user ke ander add ho gaya but user ko save bhi krwan padta hai--refresh token ko database me save krwaya hai humne
-          user.save({ validateBeforSave: false })  //yha tak humpe accessToken aur refreshToken dono token humare pass hai refresh token data base me save kr chuke hai aur is refresh  bhi hai humare pass
+          await user.save({ validateBeforSave: false })  //yha tak humpe accessToken aur refreshToken dono token humare pass hai refresh token data base me save kr chuke hai aur is refresh  bhi hai humare pass
           //ab iske baad access token aur refresh token return karege
           return {accessToken, refreshToken}
      } catch (error) {
@@ -133,11 +133,12 @@ const loginUser = asyncHandler (async (req,res) => {
 //1.Req body- data----//2.username or email ke behafe pe login karege
      const {email, username, password } = req.body          //ye humne data le liya jiske behalf pe login krna hai
      console.log(email);
+     //&& ka malb hai username aur email dono hi hona chaiye aur || ka mtlb hai koi ek 
      if (!username && !email) {                        //ydi dono me se koi ek humpe hona chaiye taki login kr ske
           throw new ApiError(400, "username or password is required")
      }
      /* if (!username || !email) {                        //ydi dono me se koi ek humpe hona chaiye taki login kr ske
-          throw new ApiError(400, "username or password is required")
+          throw new ApiError(400, "username and password are required")
      } */
      //ydi email and username dono humare pass me hai to ek user find krna padega kyoki dono me ya to email hoga ya username
 //3.find the user
@@ -151,6 +152,7 @@ const loginUser = asyncHandler (async (req,res) => {
      //ydi user ka username ya email mil gaya to ab uska password check krna padega----yaha pe User capital User mongoDB ka mongoose ka ek Object hai.
 //4.password check
      const isPasswordValid = await user.isPasswordCorrect(password)   //ye password humne user.model se set kiya --ydi password shi hua to tik hai nhi to if else laga dege aur error de denge
+     //console.log(isPasswordValid)
      //ydi password shi nhi hua to
      if (!isPasswordValid) {
           throw new ApiError(401, "Invalid user credentials")
@@ -217,7 +219,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
      //refresh token kaha se aayega--- ye hum cookies se le hit kr skte hai ya body se
      const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken  //ye humare pass user se refresh token aa gaya hai
      //agar ye refresh token aaya hi nhi to error denge
-     if (incomingRefreshToken) {
+     if (!incomingRefreshToken) {
           throw new ApiError(401, "Unauthorized request")
      }
      try {
@@ -259,4 +261,70 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
           throw new ApiError(401, error?.message || "Invalid refresh token")
      }
 })
-export { registerUser, loginUser, logOutUser, refreshAccessToken  }     //ye registerUser ko post kiya gaya hai user.routes.js me --- with the help of app.js
+//=================SUBSCRIPTION KE LIYE SUBSCRIBER AND CHANNEL ME HONE WALI KUCH ACTIVITY==============================================
+//---------1.CHANGECURRENT PASSWORD-----------------------------
+const changeCurrentUserPassword = asyncHandler(async (req, res) => {
+     //isme hume user se current password change karwana hai-- aur user se hume kitne fields lene hai wo apne upper hai
+     const { odlPassword, newPassword, confirmPassword} = req.body
+     if (!(newPassword === confirmPassword)) {
+          throw new ApiError (403, "Your New password and Confirm Password are not matched!")
+     }
+
+     //ab hume sbse phle ek user chaiye- aur ydi hum pasword change karwa pa rhe hai to -- zahir si baat hai user logged in hoga
+     //auth.middleware.js chala hai to confirm hai ki req.user me user hai --- to hum wha se le skte hai
+     const user = await User.findById(req.user?._id)
+     //kyoki humne koi select nhi lagaya hai to user ka humpe sb kuch aa gaya password bhi ---- to hum user.model me se isPasswordCorrect se check kr skte hai
+     const isPasswordCorrect = await user.isPasswordCorrect(odlPassword)   //isko hum old password denge ---ye password hume true ya false return karega
+     //ydi false return karega to ek error laga denge
+     if (!isPasswordCorrect) {
+          throw new ApiError(400, "Invalid old password")
+     }
+     //ydi old password shi hai to -- iska mtlb humara password thik tha to aage--change kr skte hai
+     user.password = newPassword  //ye jaise hi triger hoga to hum jayege user.model.js me userSchema.pre("save", async function (next) { pe
+     await user.save({validateBeforSave: false})  //yha sirf hum password hi save krna chahte hai isliye validateBeforeSave layaga hai
+     
+     //save aur password change hone ke baad user ko hume ek message bhejna hai
+     return res
+     .status(200)
+     .json(new ApiResponse(200, {}, "Password changed successfully"))
+})
+//---------2.This is end-point jo ki current user ke lene ke liye hai--------
+//agar user logged in hai to hum user de skte hai -------------like hitesh sir -- 2 minuts
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+     return res    //kyoki humari request pe middleware run ho chuka hai ab uspe user inject ho chuka hai is liye direct res return kr skte hai
+     .status(200)
+     .json(200, req.user, "Current user fetched succcessfully")
+})
+//-------yha developer decide karege ki user kya-kya change kr skte hai--------------------------
+const updateAccoutDetails = asyncHandler(async(req, res) => {
+     const {fullname, email} = req.body
+     if (!fullname || !email) {
+          throw new ApiError(400, "All fields are required")
+     }
+     //fullname aur email dono ko update krne ka information bhejte hai to
+     const user = User.findByIdAndUpdate(
+          req.user._id,
+          //isme kaam aata hai hai mongoDB ke operator
+          {
+               $set:{
+                    fullname,  //ise hum direct bhi likh skte hai fullname 
+                    email: email  //aur aise bhi likh skte hai
+               }
+          },
+          {new:true}  //ye update hone ke baad jo information hai wo hume return hoti hai
+     ).select("-password")
+
+     return res.status(200)
+     .json(new ApiResponse(200, user, "Account details updated successfully"))
+})
+
+export { 
+     registerUser,
+     loginUser,
+     logOutUser, 
+     refreshAccessToken, 
+     changeCurrentUserPassword, 
+     getCurrentUser,
+     updateAccoutDetails
+}     //ye registerUser ko post kiya gaya hai user.routes.js me --- with the help of app.js

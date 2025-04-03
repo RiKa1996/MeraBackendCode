@@ -6,7 +6,7 @@
 const asyncHandler = (requestHandler) => {
     //as a function hum ise accept kre aur as a function hi return bhi kr de hum
     return (req, res, next) => {                //ye wala asyncHandler return humne user.controller.js me bhi kiya hai 
-        Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err))
+        Promise.resolve( requestHandler(req, res, next)).catch((err) => next(err))
     }
 }
 

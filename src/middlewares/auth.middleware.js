@@ -1,9 +1,9 @@
 //ye auth middleware ye sirf ye verify karega user hai ya nhi --- aur ye help krega hume ydi user hai to use logout krne me
 //ye humara phla middleware hai
-import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken"
+import { User } from "../models/user.model.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) =>{  //res humara yaha khali hai to res ki jagah hai underscore bhi likh skte hai like _
     try {

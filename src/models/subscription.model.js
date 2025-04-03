@@ -1,6 +1,6 @@
 //isme humare 2 user hone wale hai 1. subscriber 2. channel
-import mongoose, {model, Schema} from "mongoose";
-const subscriptionSchema = new mongoose.Schema(
+import mongoose, {Schema} from "mongoose";
+const subscriptionSchema = new Schema(
     {
         //One who is subscribing
         subscriber: {
