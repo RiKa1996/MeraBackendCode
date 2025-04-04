@@ -294,7 +294,7 @@ const changeCurrentUserPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
      return res    //kyoki humari request pe middleware run ho chuka hai ab uspe user inject ho chuka hai is liye direct res return kr skte hai
      .status(200)
-     .json(200, req.user, "Current user fetched succcessfully")
+     .json(new ApiResponse (200, req.user, "Current user fetched succcessfully"))
 })
 //-------yha developer decide karege ki user kya-kya change kr skte hai--------------------------
 const updateAccoutDetails = asyncHandler(async(req, res) => {
@@ -303,8 +303,8 @@ const updateAccoutDetails = asyncHandler(async(req, res) => {
           throw new ApiError(400, "All fields are required")
      }
      //fullname aur email dono ko update krne ka information bhejte hai to
-     const user = User.findByIdAndUpdate(
-          req.user._id,
+     const user = await User.findByIdAndUpdate(
+          req.user?._id,
           //isme kaam aata hai hai mongoDB ke operator
           {
                $set:{
@@ -319,6 +319,60 @@ const updateAccoutDetails = asyncHandler(async(req, res) => {
      .json(new ApiResponse(200, user, "Account details updated successfully"))
 })
 
+//----------ab file ko upload karege ---file upload me 2 middleware ka use karna padega 1.multer and 2. whi log update kr payege jo logged in ho
+const updateUserAvatar = asyncHandler(async (req, res) => {
+     //ye path humne jaise upper registration ke time liya tha vaise hi file ka path humne liye hai wha pe files liya tha yha file only
+     const avatarLocalPath = req.file?.path  //ab file aa gai hai aur local pe multer ne upload kr di hogi
+     //Note: agar hume isi situation me database me save krna hai aur cloudinary use nhi karna hai to file avatarLocalPath ko save krwa skte hai
+     
+     //ydi avatar ka local path nhi hai to error throw kr skte hai
+     if (!avatarLocalPath) {
+          throw new ApiError(400, "Avatar file is missing")
+     }
+     //is avatar ko upload kr denge cloudinary pe
+     const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+     //agar upload ho gaya hai aur url nhi mila hai to
+     if (!avatar.url) {
+          throw new ApiError(400, "Error while uploading on avatar")
+     }
+     //ab karege update jaise humne updateAccountDetails  me kiya tha
+     const user = User.findByIdAndUpdate(
+          req.user?._id,
+          {
+               $set :{
+                    avatar: avatar.url
+               }
+          },
+          {new: true}
+     ).select("-password")
+     //response bhej denge aage
+     return res.status(200)
+     .json(new ApiResponse(200, user, "Avatar updated successfully"))
+})
+//--------ye updateUserCoverImage hai-----------------------------------
+const updateUserCoverImage = asyncHandler(async(req, res) => {
+     const coverImageLocalPath = req.file?.path
+     if (!coverImageLocalPath) {
+          throw new ApiError(400, "Cover-Image file is missing")
+     }
+     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+     if(!coverImage.url){
+          throw new ApiError(400, "Error while uploading on cover-image")
+     }
+     const user = User.findByIdAndUpdate(
+          req.user?._id,
+          {
+               $set: {
+                    coverImage: coverImage.url
+               }
+          },
+          {new: true} 
+     ).select("-password")
+     return res.status(200)
+     .json(new ApiResponse(200, user, "Cover-Image updated successfully"))
+})
+
 export { 
      registerUser,
      loginUser,
@@ -326,5 +380,8 @@ export {
      refreshAccessToken, 
      changeCurrentUserPassword, 
      getCurrentUser,
-     updateAccoutDetails
+     updateAccoutDetails,
+     updateUserAvatar,
+     updateUserCoverImage
+
 }     //ye registerUser ko post kiya gaya hai user.routes.js me --- with the help of app.js
