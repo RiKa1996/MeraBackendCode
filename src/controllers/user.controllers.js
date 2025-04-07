@@ -6,6 +6,7 @@ import { User } from "../models/user.model.js"      //3.check if user already ex
 import { uploadOnCloudinary } from "../utils/fileUploaderCloudinary.js"  ////5.agar files available ho gai hai to: upload them to cloudinary, avatar ko bhi check kr lenge
 import { ApiResponse } from "../utils/apiResponse.js"  //9.return response
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose"
 
 
 //import router from "../routes/user.routes.js"
@@ -329,6 +330,9 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
      if (!avatarLocalPath) {
           throw new ApiError(400, "Avatar file is missing")
      }
+
+     //TODO: delete old image - assigment======
+
      //is avatar ko upload kr denge cloudinary pe
      const avatar = await uploadOnCloudinary(avatarLocalPath)
 
@@ -372,7 +376,136 @@ const updateUserCoverImage = asyncHandler(async(req, res) => {
      return res.status(200)
      .json(new ApiResponse(200, user, "Cover-Image updated successfully"))
 })
+//------------------get-user-channel-profile---subscriber and channel se unki puri report--------------------------------------------
+//yha hum channel ki value nikalege
+const getUserChannelProfile = asyncHandler (async (req, res) => {
+     //ydi hume kisi channel ki profile chaiye to useally hum uske url pe jate hai
+     const {username} = req.params
+     //ydi username nhi milta hai to
+     if (!username.trim()) {
+          throw new ApiError(400, "Username is missing")
+     }
+     //fer aggregate pipline lagayege
+     const channel = await User.aggregate([                       //ye array leta hai uske under pipline likhi jati hai
+          //match pipeline se humne filter kr liye apna document 
+          {    
+               $match: {  //ise kaise match karege
+                    username: username?.toLowerCase()
+               },
+          },
+          //ab humare subsciber kitne hai wo find karege $lookup se
+          {
+               $lookup: {
+                    from: "subscriptions",         //Subscription is position pe capital S small s aur sbke ke sbke plular ho jate hai , last me s lag jat hai
+                    localField: "_id",
+                    foreignField: "channel",   //yha channel ko select krne per hume milega iske subscriber
+                    as: "subscribers"
+               }
+          },
+          //humne kise-kise subscribe kiya hai 
+          {
+               $lookup: {
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "subscriber",
+                    as: "subscribedTo"       //humne kise subscribe kiya hai
+               }
+          },
+          //-----humpe dono fields $match and $lookup fields aa chuke hai but ise hume add bhi karna hai $addFields pipeline se
+          {
+               $addFields: {
+                    subscribersCount: {   //ye name hum kud likhte hai
+                         $size : "subscribers"      //jis field ko hume add krna hai
+                    },
+                    channelSubscribedToCount : {
+                         $size : "subscribedTo"
+                    },
+                    //subscribe hua hai ki nhi
+                    isSubscribed: {
+                         $cond: {
+                              if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                              then: true,
+                              else: false
+                         }
+                    }
+               }
+          },
+          //$project एक ऐसा stage होता है जो आपको यह कंट्रोल देता है कि: 1.कौन से fields (columns) रखने हैं 2.कौन से fields हटाने हैं 3.कोई नया field बनाना है 4.या fields को transform (बदलना) है
+          {
+               $project: {
+                    fullname: 1,
+                    username : 1,
+                    subscribersCount: 1,
+                    channelSubscribedToCount: 1,
+                    isSubscribed: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                    email: 1,
 
+               }
+          }
+          
+
+     ])
+     //====agar humare pass channel hi na ho to
+     if (!channel?.length) {
+          throw new ApiError(404, "Channel doe't exits")
+     }       
+
+     return res.status(200)
+     .json(new ApiResponse(200, channel[0], "User channel fatched successfully"))
+
+})
+//=============WATCH HISTORY ko get karege=============================================================================================
+const getWatchedHistory = asyncHandler(async (req, res) => {
+     const user = await User.aggregate([
+          {
+               $match: {
+                    //yha mongoose kaam nhi krta hai yha aggregation ka pipeline ka itna bhi code hai wo directly hi jata hai
+                    _id: new mongoose.Types.ObjectId(req.user._id)      //yha pe mongoose ki jo object id hai use banani padti hai          
+               }
+          },
+          {
+               $lookup:{ //abhi hum users ke ander hai jo ki hum watchHistory ki pipeline laga rhe hai
+                    from: "videos",  //ye aaya video.model.js se jaha Video me small v aur s plular lag jata hai
+                    localField: "watchHistory",   //ye watchHistory user.model.js me se aaya hai
+                    foreignField: "_id",
+                    as: "watchHistory",
+                    //watchHistory lagane ke baad hum user me jaha watchHistory me bahot sare document aa gaye hai
+                    pipeline: [
+                         {    //this is nested lookup-----abhi hum video ke ander hai jo ki yha se hum lookup ki pipeline laga rhe hai
+                              $lookup: {
+                                   from: "users",
+                                   localField: "owner",   //map me owner hai
+                                   foreignField:"_id",
+                                   as: "owner",
+                                   //kyoki owner ke ander users ke sabhi points aa gaye to isme se kuch chije dene hai hume
+                                   pipeline: [
+                                        {
+                                             $project: {
+                                                  fullname: 1,
+                                                  username: 1,
+                                                  avatar: 1
+                                             }
+                                        }
+                                   ]
+
+                              }
+                         },
+                         {
+                              $addFields: {
+                                   owner :{
+                                        $first: "$owner"
+                                   }
+                              }
+                         }
+                    ]
+               }
+          }
+     ])
+     return res.status(200)
+     .json(new ApiError(200, user[0].watchHistory, "Watch-History fetched successfully"))
+})
 export { 
      registerUser,
      loginUser,
@@ -382,6 +515,8 @@ export {
      getCurrentUser,
      updateAccoutDetails,
      updateUserAvatar,
-     updateUserCoverImage
+     updateUserCoverImage,
+     getUserChannelProfile,
+     getWatchedHistory
 
 }     //ye registerUser ko post kiya gaya hai user.routes.js me --- with the help of app.js
