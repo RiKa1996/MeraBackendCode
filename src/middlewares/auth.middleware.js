@@ -1,4 +1,4 @@
-//ye auth middleware ye sirf ye verify karega user hai ya nhi --- aur ye help krega hume ydi user hai to use logout krne me
+//ye auth middleware ye sirf ye verify karega user logged in  hai ya nhi --- aur ye help krega hume ydi user hai to use logout krne me
 //ye humara phla middleware hai
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";

@@ -1,6 +1,8 @@
 //ye humara 1st routes hai jo ki connect hoga humare user.controller.j me registration se
 import { Router } from "express";    //Router express se hai
-import { logOutUser, loginUser, registerUser, refreshAccessToken } from "../controllers/user.controllers.js";
+import { logOutUser, loginUser, registerUser, refreshAccessToken, changeCurrentUserPassword,
+    getCurrentUser, updateAccoutDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile,
+    getWatchedHistory } from "../controllers/user.controllers.js";
 import { upload } from "../middlewares/multer.middlewares.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -28,6 +30,13 @@ router.route("/login").post(loginUser)            //post method imformation lene
 //Secure Routes
 router.route("/logout").post(verifyJWT ,logOutUser) //logOutUser se phle verifyJWT likhne se logout inject ho jata hai aur isliye auth.middleware.js me last me humne next() likha tha
 router.route("/refresh-token").post(refreshAccessToken) //yha jwt ki jarurat nhi hai -- yha request user ho ya na ho ko fark nhi padta 
+router.route("/change-password").post(verifyJWT, changeCurrentUserPassword)
+router.route("/get-current-user").get(verifyJWT, getCurrentUser)
+router.route("/account-detail").patch(verifyJWT, updateAccoutDetails)
+router.route("/avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
+router.route("/cover-image").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)
+router.route("/Channel-profile").get(verifyJWT, getUserChannelProfile)
+router.route("/Watch-history").get(verifyJWT, getWatchedHistory)
 
 
 export default router    //router ko import hum krege app.js me---export default hota hai to to manchaha naam de skte hai app.js ke imprt userRouter me 
